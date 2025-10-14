@@ -29,7 +29,7 @@
   "position": [450, 300],
   "parameters": {
     "operation": "executeQuery",
-    "query": "UPDATE orders SET status = '{{ $json.body.new_status }}' WHERE order_id = {{ $json.body.order_id }};",
+    "query": "UPDATE orders SET status = '{% raw %}{{ $json.body.new_status }}{% endraw %}' WHERE order_id = {% raw %}{{ $json.body.order_id }}{% endraw %};",
     "additionalFields": {}
   },
   "credentials": {
@@ -49,7 +49,7 @@
   "position": [650, 300],
   "parameters": {
     "respondWith": "json",
-    "responseBody": "={{ { \"status\": \"success\", \"message\": \"Order updated successfully\", \"order_id\": $json.body.order_id, \"new_status\": $json.body.new_status } }}"
+    "responseBody": "={% raw %}{{ { \"status\": \"success\", \"message\": \"Order updated successfully\", \"order_id\": $json.body.order_id, \"new_status\": $json.body.new_status } }}{% endraw %}"
   }
 }
 ```
@@ -164,7 +164,7 @@ const headers = {
       "string": [
         {
           "name": "error",
-          "value": "={{ $json.error.message }}"
+          "value": "={% raw %}{{ $json.error.message }}{% endraw %}"
         }
       ]
     }
