@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الطلبات - كافيه فيروز</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>لوحة تحكم الطلبات - كافيه فيروز</h1>
+            <div class="status-bar">
+                <div class="last-update">آخر تحديث: <span id="lastUpdate">--</span></div>
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">متصل</span>
+                    <span class="silent-refresh-indicator" id="silentRefreshIndicator" style="display: none;">🔄</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="stats-section">
+            <div class="stat-card">
+                <h3>إجمالي الطلبات النشطة</h3>
+                <span class="stat-number" id="totalOrders">0</span>
+            </div>
+            <div class="stat-card">
+                <h3>طلبات مؤكدة</h3>
+                <span class="stat-number confirmed" id="confirmedOrders">0</span>
+            </div>
+            <div class="stat-card">
+                <h3>قيد التحضير</h3>
+                <span class="stat-number preparing" id="preparingOrders">0</span>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <button id="refreshBtn" class="btn btn-primary">
+                <span class="btn-icon">🔄</span>
+                تحديث البيانات
+            </button>
+            <button id="toggleAutoRefresh" class="btn btn-secondary">
+                <span class="btn-icon">⏰</span>
+                <span id="autoRefreshText">إيقاف التحديث التلقائي</span>
+            </button>
+        </div>
+
+        <div class="loading-container" id="loadingContainer">
+            <div class="loading-spinner"></div>
+            <p>جاري تحميل الطلبات...</p>
+        </div>
+
+        <div class="error-container" id="errorContainer" style="display: none;">
+            <div class="error-message">
+                <h3>خطأ في الاتصال</h3>
+                <p id="errorText">تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.</p>
+                <button onclick="loadOrders()" class="btn btn-primary">إعادة المحاولة</button>
+            </div>
+        </div>
+
+        <div class="no-orders" id="noOrdersContainer" style="display: none;">
+            <div class="no-orders-message">
+                <h3>🎉 لا توجد طلبات جديدة</h3>
+                <p>جميع الطلبات تم إتمامها بنجاح!</p>
+            </div>
+        </div>
+
+        <div class="orders-grid" id="ordersContainer">
+            <!-- سيتم إدراج بطاقات الطلبات هنا بواسطة JavaScript -->
+        </div>
+    </div>
+
+    <!-- نافذة التأكيد -->
+    <div class="modal" id="confirmModal">
+        <div class="modal-content">
+            <h3>تأكيد تحديث حالة الطلب</h3>
+            <p id="confirmMessage">هل أنت متأكد من تحديث حالة هذا الطلب؟</p>
+            <div class="modal-actions">
+                <button id="confirmYes" class="btn btn-success">نعم، تأكيد</button>
+                <button id="confirmNo" class="btn btn-secondary">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- عنصر الصوت للتنبيهات -->
+    <audio id="notificationSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmceAjuS2fK7dSUEKHvN8NeKOwcYacDv459KEAx6wsPxwXUrBSJ3wfDejkALF2Cy6OSmUhQKRJ/g8bVhHQQ3gtnyz34vBSJ+zfDYiDYIF2a57OahTg4OUKXh8bt3JQUitcX21ZdEDRh4x+z3w2smBjqR2/K1YBwEOsjZ8MDshDgJGnTF8+x1JQQrd8Hv3+iLPAkZa73q4qFQDw4+k9nzunMqBi5+zPDXhTEIDGfB8OCYTwwRUKPe8bhgHgU2jdnxx2MhBCiExOzmh0ILGHvH5OW1XxwGOI3W8tF2JAUtdMHu3Y5ADBh5ye/4xmYnCCuEx/DUgzAHC2fA5OONSAsRRKDb8rdgHwU2jdfw4ZxPDhBKoObwunYmBSuCxfDhgTQIDGS/6OSLQgsYeczs4oNLDBBLpebwtnEmBSZ2yfTTizoIC2vF8t+QQgwTU6ba8LJcGwc5gtfxx28jBSJ4yevdgTcJEWS86uSMSgsYdMrv4ZdMDBNKpd7vtmUkBSJ6yu3QhzkJEWnB6+OSUgwXXKvj7qpZFAo+l+DywHUqBSl7zOzejzsKGGvA7t6VSgsST6Td8rhiHQQzhc7z33QkBSV3ye7cizsJGGfA7+KNTAoSRKXb8LNcGgc4gtjwxGUgBil4xuvVhTkJEWi+6+OLS" type="audio/wav">
+    </audio>
+
+    <script src="script.js"></script>
+</body>
+</html>
