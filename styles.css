@@ -49,6 +49,18 @@ body {
     gap: 8px;
 }
 
+.config-link {
+    margin-left: 10px;
+    font-size: 1.2em;
+    color: #7f8c8d;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.config-link:hover {
+    color: #3498db;
+}
+
 .status-dot {
     width: 10px;
     height: 10px;

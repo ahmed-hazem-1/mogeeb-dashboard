@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إعدادات لوحة تحكم الطلبات - كافيه فيروز</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .config-form {
+            background: #fff;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 16px;
+            direction: ltr;
+            text-align: left;
+        }
+        
+        .btn-group {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .btn-group .btn {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>إعدادات لوحة تحكم الطلبات</h1>
+            <div class="status-bar">
+                <div>يمكنك تعديل روابط الويب هوك هنا</div>
+                <div><a href="index.html" class="link">العودة للوحة التحكم</a></div>
+            </div>
+        </header>
+
+        <div class="config-form">
+            <h2>إعدادات الاتصال</h2>
+            <p style="margin-bottom: 20px;">قم بتحديث روابط الويب هوك الخاصة بخدمة n8n</p>
+            
+            <form id="configForm">
+                <div class="form-group">
+                    <label for="getOrdersWebhook">رابط الويب هوك للحصول على الطلبات (GET)</label>
+                    <input type="url" id="getOrdersWebhook" name="getOrdersWebhook" placeholder="أدخل رابط GET webhook" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="updateOrderWebhook">رابط الويب هوك لتحديث حالة الطلب (POST)</label>
+                    <input type="url" id="updateOrderWebhook" name="updateOrderWebhook" placeholder="أدخل رابط POST webhook" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="refreshInterval">فترة التحديث التلقائي (بالثواني)</label>
+                    <input type="number" id="refreshInterval" name="refreshInterval" min="10" max="300" value="30">
+                </div>
+                
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-success">حفظ الإعدادات</button>
+                    <button type="button" id="resetConfig" class="btn btn-danger">إعادة تعيين الإعدادات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('configForm');
+            const resetBtn = document.getElementById('resetConfig');
+            
+            // تحميل الإعدادات الحالية
+            const loadCurrentConfig = () => {
+                const storedConfig = localStorage.getItem('mogeebConfig');
+                if (storedConfig) {
+                    const config = JSON.parse(storedConfig);
+                    document.getElementById('getOrdersWebhook').value = config.GET_ORDERS_WEBHOOK || '';
+                    document.getElementById('updateOrderWebhook').value = config.UPDATE_ORDER_WEBHOOK || '';
+                    document.getElementById('refreshInterval').value = (config.AUTO_REFRESH_INTERVAL || 30000) / 1000;
+                }
+            };
+            
+            // حفظ الإعدادات
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const config = {
+                    GET_ORDERS_WEBHOOK: document.getElementById('getOrdersWebhook').value,
+                    UPDATE_ORDER_WEBHOOK: document.getElementById('updateOrderWebhook').value,
+                    AUTO_REFRESH_INTERVAL: document.getElementById('refreshInterval').value * 1000,
+                    MAX_RETRY_ATTEMPTS: 3,
+                    RETRY_DELAY: 2000
+                };
+                
+                localStorage.setItem('mogeebConfig', JSON.stringify(config));
+                
+                alert('تم حفظ الإعدادات بنجاح!');
+            });
+            
+            // إعادة تعيين الإعدادات
+            resetBtn.addEventListener('click', function() {
+                if (confirm('هل أنت متأكد من إعادة تعيين الإعدادات إلى القيم الافتراضية؟')) {
+                    localStorage.removeItem('mogeebConfig');
+                    loadCurrentConfig();
+                    alert('تم إعادة تعيين الإعدادات!');
+                }
+            });
+            
+            // تحميل الإعدادات عند فتح الصفحة
+            loadCurrentConfig();
+        });
+    </script>
+</body>
+</html>

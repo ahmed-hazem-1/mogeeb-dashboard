@@ -1,5 +1,11 @@
 // إعدادات التطبيق
-const CONFIG = {
+// نقوم بجلب الإعدادات من localStorage إذا وجدت، وإلا نستخدم الإعدادات الافتراضية
+const getStoredConfig = () => {
+    const storedConfig = localStorage.getItem('mogeebConfig');
+    return storedConfig ? JSON.parse(storedConfig) : null;
+};
+
+const CONFIG = getStoredConfig() || {
     // رابط الـ webhook لجلب الطلبات (GET)
     GET_ORDERS_WEBHOOK: 'https://antoinette-nonmimetic-boringly.ngrok-free.dev/webhook/3661fab8-5e08-446f-869f-8c229d6111ea',
     
