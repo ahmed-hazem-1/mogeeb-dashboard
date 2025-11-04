@@ -7,7 +7,7 @@ const getStoredConfig = () => {
 
 const CONFIG = getStoredConfig() || {
     // رابط الـ webhook لجلب الطلبات (GET)
-    GET_ORDERS_WEBHOOK: 'https://antoinette-nonmimetic-boringly.ngrok-free.dev/webhook/3661fab8-5e08-446f-869f-8c229d6111ea',
+    GET_ORDERS_WEBHOOK: 'https://biometrical-bettina-benignly.ngrok-free.dev/webhook/webhook/get-orders',
     
     // رابط الـ webhook لتحديث حالة الطلب (POST) - سيحتاج إلى إنشاؤه في n8n
     UPDATE_ORDER_WEBHOOK: 'https://antoinette-nonmimetic-boringly.ngrok-free.dev/webhook/update-order',
