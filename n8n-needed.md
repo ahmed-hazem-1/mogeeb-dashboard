@@ -27,7 +27,7 @@ The webhook must return a JSON array of orders with the following structure:
     "customer_phone": "+201234567890",
     "delivery_address": "شارع النيل، المعادي، القاهرة",
     "order_time_cairo": "2025-11-04 14:30:00",
-    "status": "new",
+    "status": "pending_confirmation",
     "total_price": 85.50,
     "order_items": [
       {
@@ -69,19 +69,19 @@ SELECT
     ) as order_items
 FROM orders o
 LEFT JOIN order_items oi ON o.order_id = oi.order_id
-WHERE o.status IN ('new', 'confirmed', 'preparing')
+WHERE o.status IN ('pending_confirmation', 'confirmed', 'preparing', 'out_for_delivery')
 GROUP BY o.order_id, o.customer_name, o.customer_phone, o.delivery_address, o.order_time_cairo, o.status, o.total_price
 ORDER BY o.order_time_cairo DESC;
 ```
 
 #### Status Values
 The `status` field must use these exact values:
-- `"new"` - طلب جديد
+- `"pending_confirmation"` - في انتظار التأكيد
 - `"confirmed"` - مؤكد
 - `"preparing"` - قيد التحضير
-- `"ready"` - جاهز للتسليم
+- `"out_for_delivery"` - في الطريق للتسليم
 - `"delivered"` - تم التسليم
-- `"cancelled"` - ملغي
+- `"canceled"` - ملغي
 
 ---
 
@@ -227,7 +227,7 @@ CREATE TABLE order_status_history (
   "customer_phone": "+201098765432",
   "delivery_address": "شارع التحرير، وسط البلد، القاهرة",
   "order_time_cairo": "2025-11-04 16:20:00",
-  "status": "new",
+  "status": "pending_confirmation",
   "total_price": 120.75,
   "order_items": [
     {

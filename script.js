@@ -10,7 +10,7 @@ const CONFIG = getStoredConfig() || {
     GET_ORDERS_WEBHOOK: 'https://biometrical-bettina-benignly.ngrok-free.dev/webhook/webhook/get-orders',
     
     // رابط الـ webhook لتحديث حالة الطلب (POST) - سيحتاج إلى إنشاؤه في n8n
-    UPDATE_ORDER_WEBHOOK: 'https://antoinette-nonmimetic-boringly.ngrok-free.dev/webhook/update-order',
+    UPDATE_ORDER_WEBHOOK: 'https://biometrical-bettina-benignly.ngrok-free.dev/webhook/webhook/update-order',
     
     // فترة التحديث التلقائي بالميلي ثانية (30 ثانية)
     AUTO_REFRESH_INTERVAL: 30000,
@@ -60,6 +60,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // تهيئة التطبيق
 function initializeApp() {
+    // تنظيف أي cache قديم للحالات
+    clearOldCache();
+    
     // طلب إذن الإشعارات
     requestNotificationPermission();
     
@@ -208,10 +211,10 @@ function processOrdersData(data) {
         orders = [];
     }
     
-    // فلترة الطلبات النشطة فقط (ليست completed أو cancelled)
+    // فلترة الطلبات النشطة فقط (ليست delivered أو canceled)
     orders = orders.filter(order => 
         order.status && 
-        !['completed', 'cancelled'].includes(order.status.toLowerCase())
+        !['delivered', 'canceled'].includes(order.status.toLowerCase())
     );
     
     console.log(`تم العثور على ${orders.length} طلب نشط`);
@@ -352,25 +355,39 @@ function createItemsList(orderItems) {
     }).join('');
 }
 
-// إنشاء أزرار التحكم
 function createActionButtons(order) {
     const status = order.status ? order.status.toLowerCase() : '';
     
     let buttons = '';
     
-    if (status === 'confirmed') {
+    if (status === 'pending_confirmation') {
+        buttons += `
+            <button class="btn btn-primary" onclick="updateOrderStatus(${order.order_id}, 'confirmed', 'تأكيد الطلب')">
+                ✅ تأكيد الطلب
+            </button>
+            <button class="btn btn-danger" onclick="updateOrderStatus(${order.order_id}, 'canceled', 'إلغاء الطلب')">
+                ❌ إلغاء الطلب
+            </button>
+        `;
+    } else if (status === 'confirmed') {
         buttons += `
             <button class="btn btn-primary" onclick="updateOrderStatus(${order.order_id}, 'preparing', 'بدء تحضير الطلب')">
                 🍳 بدء التحضير
             </button>
-            <button class="btn btn-success" onclick="updateOrderStatus(${order.order_id}, 'completed', 'إتمام الطلب مباشرة')">
-                ✅ إتمام الطلب
+            <button class="btn btn-success" onclick="updateOrderStatus(${order.order_id}, 'out_for_delivery', 'إرسال للتوصيل')">
+                🚗 إرسال للتوصيل
             </button>
         `;
     } else if (status === 'preparing') {
         buttons += `
-            <button class="btn btn-success" onclick="updateOrderStatus(${order.order_id}, 'completed', 'إتمام الطلب')">
-                ✅ الطلب جاهز
+            <button class="btn btn-success" onclick="updateOrderStatus(${order.order_id}, 'out_for_delivery', 'إرسال للتوصيل')">
+                🚗 إرسال للتوصيل
+            </button>
+        `;
+    } else if (status === 'out_for_delivery') {
+        buttons += `
+            <button class="btn btn-success" onclick="updateOrderStatus(${order.order_id}, 'delivered', 'تم تسليم الطلب')">
+                ✅ تم التسليم
             </button>
         `;
     }
@@ -380,6 +397,14 @@ function createActionButtons(order) {
 
 // تحديث حالة الطلب
 function updateOrderStatus(orderId, newStatus, actionText) {
+    // التحقق من صحة الحالة الجديدة
+    const validStatuses = ['pending_confirmation', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'canceled'];
+    if (!validStatuses.includes(newStatus)) {
+        console.error('حالة غير صحيحة:', newStatus);
+        alert('خطأ: حالة الطلب غير صحيحة');
+        return;
+    }
+    
     // حفظ بيانات الطلب المراد تحديثه
     window.pendingOrderUpdate = {
         orderId: orderId,
@@ -403,6 +428,16 @@ async function confirmOrderUpdate() {
     
     console.log(`جاري تحديث الطلب ${orderId} إلى حالة ${newStatus}`);
     
+    // تحضير بيانات الطلب
+    const updateData = {
+        order_id: orderId,
+        new_status: newStatus,
+        updated_by: 'dashboard',
+        timestamp: new Date().toISOString()
+    };
+    
+    console.log('بيانات التحديث المرسلة:', updateData);
+    
     try {
         // إرسال طلب التحديث
         const response = await fetch(CONFIG.UPDATE_ORDER_WEBHOOK, {
@@ -411,10 +446,7 @@ async function confirmOrderUpdate() {
                 'Content-Type': 'application/json',
                 'ngrok-skip-browser-warning': 'true'
             },
-            body: JSON.stringify({
-                order_id: orderId,
-                new_status: newStatus
-            })
+            body: JSON.stringify(updateData)
         });
         
         if (!response.ok) {
@@ -452,7 +484,7 @@ function updateStats(orders) {
     const stats = {
         total: orders.length,
         confirmed: orders.filter(o => o.status && o.status.toLowerCase() === 'confirmed').length,
-        preparing: orders.filter(o => o.status && o.status.toLowerCase() === 'preparing').length
+        preparing: orders.filter(o => o.status && ['preparing', 'out_for_delivery'].includes(o.status.toLowerCase())).length
     };
     
     elements.totalOrders.textContent = stats.total;
@@ -642,10 +674,12 @@ function formatPrice(price) {
 // الحصول على نص الحالة
 function getStatusText(status) {
     const statusMap = {
+        'pending_confirmation': 'في انتظار التأكيد',
         'confirmed': 'مؤكد',
         'preparing': 'قيد التحضير',
-        'completed': 'مكتمل',
-        'cancelled': 'ملغي'
+        'out_for_delivery': 'في الطريق للتسليم',
+        'delivered': 'تم التسليم',
+        'canceled': 'ملغي'
     };
     
     return statusMap[status?.toLowerCase()] || status || 'غير معروف';
@@ -657,6 +691,27 @@ window.addEventListener('beforeunload', function() {
         clearInterval(autoRefreshTimer);
     }
 });
+
+// تنظيف أي cache قديم
+function clearOldCache() {
+    // إصدار التطبيق الحالي
+    const currentVersion = '2.0.0';
+    const storedVersion = localStorage.getItem('appVersion');
+    
+    if (storedVersion !== currentVersion) {
+        console.log('إزالة cache قديم وتحديث الإصدار');
+        
+        // إزالة أي بيانات cache قديمة
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('orderCache') || key.startsWith('statusCache')) {
+                localStorage.removeItem(key);
+            }
+        });
+        
+        // تحديث رقم الإصدار
+        localStorage.setItem('appVersion', currentVersion);
+    }
+}
 
 // مراقبة حالة الاتصال
 window.addEventListener('online', function() {
