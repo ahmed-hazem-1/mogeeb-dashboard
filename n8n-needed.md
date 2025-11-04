@@ -17,33 +17,44 @@ Retrieve all active orders from the database to display in the dashboard.
 - **CORS**: Enabled (Allow all origins: `*`)
 
 #### Expected Output Format
-The webhook must return a JSON array of orders with the following structure:
+The webhook must return a JSON array with statistics and orders in the following structure:
 
 ```json
 [
   {
-    "order_id": 12345,
-    "customer_name": "أحمد محمد",
-    "customer_phone": "+201234567890",
-    "delivery_address": "شارع النيل، المعادي، القاهرة",
-    "order_time_cairo": "2025-11-04 14:30:00",
-    "status": "pending_confirmation",
-    "total_price": 85.50,
-    "order_items": [
+    "stats": {
+      "pending_confirmation": 0,
+      "confirmed": 8,
+      "preparing": 1,
+      "out_for_delivery": 3,
+      "total_active": 12
+    },
+    "orders": [
       {
-        "item_name": "قهوة تركي",
-        "quantity": 2,
-        "item_price": 15.00
-      },
-      {
-        "item_name": "كروسان بالجبن",
-        "quantity": 1,
-        "item_price": 25.50
-      },
-      {
-        "item_name": "عصير برتقال",
-        "quantity": 3,
-        "item_price": 15.00
+        "order_id": 12345,
+        "customer_name": "أحمد محمد",
+        "customer_phone": "+201234567890",
+        "delivery_address": "شارع النيل، المعادي، القاهرة",
+        "order_time_cairo": "2025-11-04 14:30:00",
+        "status": "pending_confirmation",
+        "total_price": 85.50,
+        "order_items": [
+          {
+            "item_name": "قهوة تركي",
+            "quantity": 2,
+            "item_price": 15.00
+          },
+          {
+            "item_name": "كروسان بالجبن",
+            "quantity": 1,
+            "item_price": 25.50
+          },
+          {
+            "item_name": "عصير برتقال",
+            "quantity": 3,
+            "item_price": 15.00
+          }
+        ]
       }
     ]
   }
@@ -52,26 +63,44 @@ The webhook must return a JSON array of orders with the following structure:
 
 #### Required Database Query
 ```sql
+-- Get statistics and orders in one query
+WITH order_stats AS (
+    SELECT 
+        COUNT(*) FILTER (WHERE status = 'pending_confirmation') as pending_confirmation,
+        COUNT(*) FILTER (WHERE status = 'confirmed') as confirmed,
+        COUNT(*) FILTER (WHERE status = 'preparing') as preparing,
+        COUNT(*) FILTER (WHERE status = 'out_for_delivery') as out_for_delivery,
+        COUNT(*) as total_active
+    FROM orders 
+    WHERE status IN ('pending_confirmation', 'confirmed', 'preparing', 'out_for_delivery')
+),
+order_data AS (
+    SELECT 
+        o.order_id,
+        o.customer_name,
+        o.customer_phone,
+        o.delivery_address,
+        o.order_time_cairo,
+        o.status,
+        o.total_price,
+        JSON_AGG(
+            JSON_BUILD_OBJECT(
+                'item_name', oi.item_name,
+                'quantity', oi.quantity,
+                'item_price', oi.item_price
+            )
+        ) as order_items
+    FROM orders o
+    LEFT JOIN order_items oi ON o.order_id = oi.order_id
+    WHERE o.status IN ('pending_confirmation', 'confirmed', 'preparing', 'out_for_delivery')
+    GROUP BY o.order_id, o.customer_name, o.customer_phone, o.delivery_address, o.order_time_cairo, o.status, o.total_price
+    ORDER BY o.order_time_cairo DESC
+)
 SELECT 
-    o.order_id,
-    o.customer_name,
-    o.customer_phone,
-    o.delivery_address,
-    o.order_time_cairo,
-    o.status,
-    o.total_price,
-    JSON_AGG(
-        JSON_BUILD_OBJECT(
-            'item_name', oi.item_name,
-            'quantity', oi.quantity,
-            'item_price', oi.item_price
-        )
-    ) as order_items
-FROM orders o
-LEFT JOIN order_items oi ON o.order_id = oi.order_id
-WHERE o.status IN ('pending_confirmation', 'confirmed', 'preparing', 'out_for_delivery')
-GROUP BY o.order_id, o.customer_name, o.customer_phone, o.delivery_address, o.order_time_cairo, o.status, o.total_price
-ORDER BY o.order_time_cairo DESC;
+    JSON_BUILD_OBJECT(
+        'stats', (SELECT row_to_json(order_stats) FROM order_stats),
+        'orders', (SELECT JSON_AGG(row_to_json(order_data)) FROM order_data)
+    ) as result;
 ```
 
 #### Status Values

@@ -68,8 +68,41 @@
             </div>
         </div>
 
-        <div class="orders-grid" id="ordersContainer">
-            <!-- سيتم إدراج بطاقات الطلبات هنا بواسطة JavaScript -->
+        <!-- Tabs for order statuses -->
+        <div class="tabs-container" id="tabsContainer" style="display: none;">
+            <div class="tabs-header">
+                <button class="tab-button active" data-status="all" id="tabAll">
+                    <span class="tab-icon">📋</span>
+                    <span class="tab-text">جميع الطلبات</span>
+                    <span class="tab-count" id="countAll">0</span>
+                </button>
+                <button class="tab-button" data-status="pending_confirmation" id="tabPending">
+                    <span class="tab-icon">⏳</span>
+                    <span class="tab-text">في انتظار التأكيد</span>
+                    <span class="tab-count" id="countPending">0</span>
+                </button>
+                <button class="tab-button" data-status="confirmed" id="tabConfirmed">
+                    <span class="tab-icon">✅</span>
+                    <span class="tab-text">مؤكدة</span>
+                    <span class="tab-count" id="countConfirmed">0</span>
+                </button>
+                <button class="tab-button" data-status="preparing" id="tabPreparing">
+                    <span class="tab-icon">🍳</span>
+                    <span class="tab-text">قيد التحضير</span>
+                    <span class="tab-count" id="countPreparing">0</span>
+                </button>
+                <button class="tab-button" data-status="out_for_delivery" id="tabDelivery">
+                    <span class="tab-icon">🚗</span>
+                    <span class="tab-text">في الطريق</span>
+                    <span class="tab-count" id="countDelivery">0</span>
+                </button>
+            </div>
+            
+            <div class="tab-content">
+                <div class="orders-grid" id="ordersContainer">
+                    <!-- سيتم إدراج بطاقات الطلبات هنا بواسطة JavaScript -->
+                </div>
+            </div>
         </div>
     </div>
 

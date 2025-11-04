@@ -24,6 +24,8 @@ const CONFIG = getStoredConfig() || {
 
 // متغيرات عامة
 let currentOrders = [];
+let filteredOrders = [];
+let activeTab = 'all';
 let autoRefreshTimer = null;
 let isAutoRefreshEnabled = true;
 let retryAttempts = 0;
@@ -35,6 +37,7 @@ const elements = {
     loadingContainer: document.getElementById('loadingContainer'),
     errorContainer: document.getElementById('errorContainer'),
     noOrdersContainer: document.getElementById('noOrdersContainer'),
+    tabsContainer: document.getElementById('tabsContainer'),
     totalOrders: document.getElementById('totalOrders'),
     confirmedOrders: document.getElementById('confirmedOrders'),
     preparingOrders: document.getElementById('preparingOrders'),
@@ -49,7 +52,14 @@ const elements = {
     confirmNo: document.getElementById('confirmNo'),
     confirmMessage: document.getElementById('confirmMessage'),
     errorText: document.getElementById('errorText'),
-    notificationSound: document.getElementById('notificationSound')
+    notificationSound: document.getElementById('notificationSound'),
+    // Tab elements
+    tabButtons: document.querySelectorAll('.tab-button'),
+    countAll: document.getElementById('countAll'),
+    countPending: document.getElementById('countPending'),
+    countConfirmed: document.getElementById('countConfirmed'),
+    countPreparing: document.getElementById('countPreparing'),
+    countDelivery: document.getElementById('countDelivery')
 };
 
 // تهيئة التطبيق عند تحميل الصفحة
@@ -99,6 +109,14 @@ function setupEventListeners() {
     // أزرار نافذة التأكيد
     elements.confirmYes.addEventListener('click', confirmOrderUpdate);
     elements.confirmNo.addEventListener('click', closeConfirmModal);
+    
+    // تبديل التابات
+    elements.tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const status = button.getAttribute('data-status');
+            switchTab(status);
+        });
+    });
     
     // إغلاق النافذة عند النقر خارجها
     elements.confirmModal.addEventListener('click', function(e) {
@@ -152,7 +170,7 @@ async function loadOrders(silentRefresh = false) {
         console.log('تم استلام البيانات:', data);
         
         // معالجة البيانات
-        processOrdersData(data);
+        const orders = processOrdersData(data);
         
         // تحديث حالة الاتصال
         updateConnectionStatus('متصل', true);
@@ -161,9 +179,6 @@ async function loadOrders(silentRefresh = false) {
         if (silentRefresh) {
             elements.silentRefreshIndicator.style.display = 'none';
         }
-        
-        // تحديث وقت آخر تحديث
-        updateLastUpdateTime();
         
         // إعادة تعيين عداد المحاولات
         retryAttempts = 0;
@@ -203,10 +218,27 @@ async function fetchWithRetry(url, options, attempts = CONFIG.MAX_RETRY_ATTEMPTS
 
 // معالجة بيانات الطلبات
 function processOrdersData(data) {
-    // التأكد من أن البيانات في التنسيق الصحيح
-    let orders = Array.isArray(data) ? data : (data.orders || []);
+    console.log('البيانات المستلمة:', data);
     
-    if (!Array.isArray(orders)) {
+    // التحقق من التنسيق الجديد مع الإحصائيات
+    let orders = [];
+    let stats = null;
+    
+    if (Array.isArray(data) && data.length > 0 && data[0].orders) {
+        // التنسيق الجديد مع الإحصائيات
+        const responseData = data[0];
+        orders = responseData.orders || [];
+        stats = responseData.stats || null;
+        
+        console.log('تم العثور على إحصائيات جاهزة:', stats);
+    } else if (Array.isArray(data)) {
+        // التنسيق القديم - مصفوفة طلبات مباشرة
+        orders = data;
+    } else if (data && data.orders) {
+        // تنسيق كائن يحتوي على orders
+        orders = data.orders;
+        stats = data.stats;
+    } else {
         console.warn('تنسيق البيانات غير صحيح:', data);
         orders = [];
     }
@@ -222,7 +254,22 @@ function processOrdersData(data) {
     // التحقق من الطلبات الجديدة
     checkForNewOrders(orders);
     
-    // تحديث الطلبات الحالية
+    // تحديث الطلبات الحالية وعرضها
+    displayOrders(orders, stats);
+    
+    // تحديث الإحصائيات
+    if (stats) {
+        // استخدام الإحصائيات الجاهزة من الخادم
+        updateStatsFromServer(stats);
+    } else {
+        // حساب الإحصائيات محلياً (للتوافق مع النسخة القديمة)
+        updateStats(orders);
+    }
+    
+    // تحديث آخر تحديث
+    updateLastUpdateTime();
+    
+    return orders;
     currentOrders = orders;
     
     // عرض الطلبات
@@ -257,22 +304,25 @@ function checkForNewOrders(newOrders) {
 }
 
 // عرض الطلبات
-function displayOrders(orders) {
+function displayOrders(orders, serverStats = null) {
+    // حفظ الطلبات الحالية
+    currentOrders = orders;
+    
     // إخفاء حالات التحميل والخطأ
     hideAllStates();
     
     if (orders.length === 0) {
         elements.noOrdersContainer.style.display = 'flex';
+        elements.tabsContainer.style.display = 'none';
         return;
     }
     
-    elements.ordersContainer.style.display = 'grid';
-    elements.ordersContainer.innerHTML = '';
+    // إظهار التابات وتحديث العدادات
+    elements.tabsContainer.style.display = 'block';
+    updateTabCounts(orders, serverStats);
     
-    orders.forEach((order, index) => {
-        const orderCard = createOrderCard(order, index);
-        elements.ordersContainer.appendChild(orderCard);
-    });
+    // تطبيق الفلترة حسب التاب النشط
+    filterAndDisplayOrders();
 }
 
 // إنشاء بطاقة طلب
@@ -492,6 +542,109 @@ function updateStats(orders) {
     elements.preparingOrders.textContent = stats.preparing;
 }
 
+// تحديث الإحصائيات من الخادم
+function updateStatsFromServer(serverStats) {
+    console.log('تحديث الإحصائيات من الخادم:', serverStats);
+    
+    // تحديث الإحصائيات الرئيسية
+    elements.totalOrders.textContent = serverStats.total_active || 0;
+    elements.confirmedOrders.textContent = serverStats.confirmed || 0;
+    
+    // دمج قيد التحضير مع في الطريق للتسليم
+    const preparingTotal = (serverStats.preparing || 0) + (serverStats.out_for_delivery || 0);
+    elements.preparingOrders.textContent = preparingTotal;
+    
+    // يمكن إضافة المزيد من الإحصائيات هنا إذا لزم الأمر
+}
+
+// تحديث عدادات التابات
+function updateTabCounts(orders, serverStats = null) {
+    let counts;
+    
+    if (serverStats) {
+        // استخدام الإحصائيات من الخادم
+        counts = {
+            all: serverStats.total_active || 0,
+            pending_confirmation: serverStats.pending_confirmation || 0,
+            confirmed: serverStats.confirmed || 0,
+            preparing: serverStats.preparing || 0,
+            out_for_delivery: serverStats.out_for_delivery || 0
+        };
+        console.log('استخدام إحصائيات الخادم للتابات:', counts);
+    } else {
+        // حساب الإحصائيات محلياً
+        counts = {
+            all: orders.length,
+            pending_confirmation: orders.filter(o => o.status?.toLowerCase() === 'pending_confirmation').length,
+            confirmed: orders.filter(o => o.status?.toLowerCase() === 'confirmed').length,
+            preparing: orders.filter(o => o.status?.toLowerCase() === 'preparing').length,
+            out_for_delivery: orders.filter(o => o.status?.toLowerCase() === 'out_for_delivery').length
+        };
+    }
+    
+    elements.countAll.textContent = counts.all;
+    elements.countPending.textContent = counts.pending_confirmation;
+    elements.countConfirmed.textContent = counts.confirmed;
+    elements.countPreparing.textContent = counts.preparing;
+    elements.countDelivery.textContent = counts.out_for_delivery;
+}
+
+// تبديل التاب
+function switchTab(status) {
+    // تحديث التاب النشط
+    activeTab = status;
+    
+    // تحديث أزرار التابات
+    elements.tabButtons.forEach(button => {
+        button.classList.remove('active');
+        if (button.getAttribute('data-status') === status) {
+            button.classList.add('active');
+        }
+    });
+    
+    // إعادة عرض الطلبات المفلترة
+    filterAndDisplayOrders();
+}
+
+// فلترة وعرض الطلبات حسب التاب النشط
+function filterAndDisplayOrders() {
+    let ordersToShow = currentOrders;
+    
+    // تطبيق الفلترة حسب الحالة
+    if (activeTab !== 'all') {
+        ordersToShow = currentOrders.filter(order => {
+            if (!order.status) return false;
+            
+            const orderStatus = order.status.toLowerCase().trim();
+            const tabStatus = activeTab.toLowerCase().trim();
+            
+            return orderStatus === tabStatus;
+        });
+    }
+    
+    // عرض الطلبات
+    elements.ordersContainer.innerHTML = '';
+    
+    if (ordersToShow.length === 0) {
+        elements.ordersContainer.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #7f8c8d;">
+                <h3>لا توجد طلبات في هذه الفئة</h3>
+                <p>جميع الطلبات في حالة أخرى</p>
+                <small style="display: block; margin-top: 10px; opacity: 0.7;">
+                    البحث عن: "${activeTab}"
+                </small>
+            </div>
+        `;
+        return;
+    }
+    
+    elements.ordersContainer.style.display = 'grid';
+    ordersToShow.forEach((order, index) => {
+        const orderCard = createOrderCard(order, index);
+        elements.ordersContainer.appendChild(orderCard);
+    });
+}
+
 // عرض حالة التحميل
 function showLoading() {
     hideAllStates();
@@ -503,6 +656,7 @@ function hideAllStates() {
     elements.loadingContainer.style.display = 'none';
     elements.errorContainer.style.display = 'none';
     elements.noOrdersContainer.style.display = 'none';
+    elements.tabsContainer.style.display = 'none';
     elements.ordersContainer.style.display = 'none';
 }
 
