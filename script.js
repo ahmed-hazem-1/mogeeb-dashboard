@@ -30,6 +30,8 @@ let autoRefreshTimer = null;
 let isAutoRefreshEnabled = true;
 let retryAttempts = 0;
 let lastOrderIds = new Set();
+let allOrdersHistory = []; // لتخزين جميع الطلبات بما فيها القديمة للتقارير
+let currentReportPeriod = 'today'; // الفترة الزمنية للتقارير
 
 // عناصر DOM
 const elements = {
@@ -41,6 +43,13 @@ const elements = {
     totalOrders: document.getElementById('totalOrders'),
     confirmedOrders: document.getElementById('confirmedOrders'),
     preparingOrders: document.getElementById('preparingOrders'),
+    deliveredOrders: document.getElementById('deliveredOrders'),
+    // Quick nav stats
+    navTotalOrders: document.getElementById('navTotalOrders'),
+    navConfirmedOrders: document.getElementById('navConfirmedOrders'),
+    navPreparingOrders: document.getElementById('navPreparingOrders'),
+    navDeliveredOrders: document.getElementById('navDeliveredOrders'),
+    navTodaySales: document.getElementById('navTodaySales'),
     lastUpdate: document.getElementById('lastUpdate'),
     connectionStatus: document.getElementById('connectionStatus'),
     silentRefreshIndicator: document.getElementById('silentRefreshIndicator'),
@@ -59,7 +68,8 @@ const elements = {
     countPending: document.getElementById('countPending'),
     countConfirmed: document.getElementById('countConfirmed'),
     countPreparing: document.getElementById('countPreparing'),
-    countDelivery: document.getElementById('countDelivery')
+    countDelivery: document.getElementById('countDelivery'),
+    countDelivered: document.getElementById('countDelivered')
 };
 
 // تهيئة التطبيق عند تحميل الصفحة
@@ -78,6 +88,9 @@ function initializeApp() {
     
     // إعداد مستمعي الأحداث
     setupEventListeners();
+    
+    // إعداد مستمعي أحداث التقارير
+    setupReportEventListeners();
     
     // تحميل الطلبات الأولي
     loadOrders();
@@ -246,7 +259,7 @@ function processOrdersData(data) {
     // فلترة الطلبات النشطة فقط (ليست delivered أو canceled)
     orders = orders.filter(order => 
         order.status && 
-        !['delivered', 'canceled'].includes(order.status.toLowerCase())
+        !['canceled'].includes(order.status.toLowerCase())
     );
     
     console.log(`تم العثور على ${orders.length} طلب نشط`);
@@ -269,14 +282,13 @@ function processOrdersData(data) {
     // تحديث آخر تحديث
     updateLastUpdateTime();
     
+    // حفظ جميع الطلبات للتقارير
+    allOrdersHistory = orders;
+    
+    // تحديث التقارير
+    updateReports(orders);
+    
     return orders;
-    currentOrders = orders;
-    
-    // عرض الطلبات
-    displayOrders(orders);
-    
-    // تحديث الإحصائيات
-    updateStats(orders);
 }
 
 // التحقق من الطلبات الجديدة
@@ -534,25 +546,43 @@ function updateStats(orders) {
     const stats = {
         total: orders.length,
         confirmed: orders.filter(o => o.status && o.status.toLowerCase() === 'confirmed').length,
-        preparing: orders.filter(o => o.status && ['preparing', 'out_for_delivery'].includes(o.status.toLowerCase())).length
+        preparing: orders.filter(o => o.status && ['preparing', 'out_for_delivery'].includes(o.status.toLowerCase())).length,
+        delivered: orders.filter(o => o.status && o.status.toLowerCase() === 'delivered').length
     };
     
-    elements.totalOrders.textContent = stats.total;
-    elements.confirmedOrders.textContent = stats.confirmed;
-    elements.preparingOrders.textContent = stats.preparing;
+    // تحديث الإحصائيات القديمة (إذا كانت موجودة)
+    if (elements.totalOrders) elements.totalOrders.textContent = stats.total;
+    if (elements.confirmedOrders) elements.confirmedOrders.textContent = stats.confirmed;
+    if (elements.preparingOrders) elements.preparingOrders.textContent = stats.preparing;
+    if (elements.deliveredOrders) elements.deliveredOrders.textContent = stats.delivered;
+    
+    // تحديث شريط التنقل
+    if (elements.navTotalOrders) elements.navTotalOrders.textContent = stats.total;
+    if (elements.navConfirmedOrders) elements.navConfirmedOrders.textContent = stats.confirmed;
+    if (elements.navPreparingOrders) elements.navPreparingOrders.textContent = stats.preparing;
+    if (elements.navDeliveredOrders) elements.navDeliveredOrders.textContent = stats.delivered;
 }
 
 // تحديث الإحصائيات من الخادم
 function updateStatsFromServer(serverStats) {
     console.log('تحديث الإحصائيات من الخادم:', serverStats);
     
-    // تحديث الإحصائيات الرئيسية
-    elements.totalOrders.textContent = serverStats.total_active || 0;
-    elements.confirmedOrders.textContent = serverStats.confirmed || 0;
+    // تحديث الإحصائيات القديمة (إذا كانت موجودة)
+    if (elements.totalOrders) elements.totalOrders.textContent = serverStats.total_active || 0;
+    if (elements.confirmedOrders) elements.confirmedOrders.textContent = serverStats.confirmed || 0;
     
     // دمج قيد التحضير مع في الطريق للتسليم
     const preparingTotal = (serverStats.preparing || 0) + (serverStats.out_for_delivery || 0);
-    elements.preparingOrders.textContent = preparingTotal;
+    if (elements.preparingOrders) elements.preparingOrders.textContent = preparingTotal;
+    
+    // تحديث عدد الطلبات المسلمة
+    if (elements.deliveredOrders) elements.deliveredOrders.textContent = serverStats.delivered || 0;
+    
+    // تحديث شريط التنقل
+    if (elements.navTotalOrders) elements.navTotalOrders.textContent = serverStats.total_active || 0;
+    if (elements.navConfirmedOrders) elements.navConfirmedOrders.textContent = serverStats.confirmed || 0;
+    if (elements.navPreparingOrders) elements.navPreparingOrders.textContent = preparingTotal;
+    if (elements.navDeliveredOrders) elements.navDeliveredOrders.textContent = serverStats.delivered || 0;
     
     // يمكن إضافة المزيد من الإحصائيات هنا إذا لزم الأمر
 }
@@ -568,7 +598,8 @@ function updateTabCounts(orders, serverStats = null) {
             pending_confirmation: serverStats.pending_confirmation || 0,
             confirmed: serverStats.confirmed || 0,
             preparing: serverStats.preparing || 0,
-            out_for_delivery: serverStats.out_for_delivery || 0
+            out_for_delivery: serverStats.out_for_delivery || 0,
+            delivered: serverStats.delivered || 0
         };
         console.log('استخدام إحصائيات الخادم للتابات:', counts);
     } else {
@@ -578,7 +609,8 @@ function updateTabCounts(orders, serverStats = null) {
             pending_confirmation: orders.filter(o => o.status?.toLowerCase() === 'pending_confirmation').length,
             confirmed: orders.filter(o => o.status?.toLowerCase() === 'confirmed').length,
             preparing: orders.filter(o => o.status?.toLowerCase() === 'preparing').length,
-            out_for_delivery: orders.filter(o => o.status?.toLowerCase() === 'out_for_delivery').length
+            out_for_delivery: orders.filter(o => o.status?.toLowerCase() === 'out_for_delivery').length,
+            delivered: orders.filter(o => o.status?.toLowerCase() === 'delivered').length
         };
     }
     
@@ -587,6 +619,7 @@ function updateTabCounts(orders, serverStats = null) {
     elements.countConfirmed.textContent = counts.confirmed;
     elements.countPreparing.textContent = counts.preparing;
     elements.countDelivery.textContent = counts.out_for_delivery;
+    elements.countDelivered.textContent = counts.delivered;
 }
 
 // تبديل التاب
@@ -602,12 +635,31 @@ function switchTab(status) {
         }
     });
     
-    // إعادة عرض الطلبات المفلترة
-    filterAndDisplayOrders();
+    // إظهار/إخفاء المحتوى المناسب
+    const ordersContainer = document.getElementById('ordersContainer');
+    const reportsContent = document.getElementById('reportsContent');
+    
+    if (status === 'reports') {
+        // إظهار التقارير وإخفاء الطلبات
+        if (ordersContainer) ordersContainer.style.display = 'none';
+        if (reportsContent) reportsContent.style.display = 'block';
+    } else {
+        // إظهار الطلبات وإخفاء التقارير
+        if (ordersContainer) ordersContainer.style.display = 'grid';
+        if (reportsContent) reportsContent.style.display = 'none';
+        
+        // إعادة عرض الطلبات المفلترة
+        filterAndDisplayOrders();
+    }
 }
 
 // فلترة وعرض الطلبات حسب التاب النشط
 function filterAndDisplayOrders() {
+    // إذا كان تاب التقارير نشط، لا تفعل شيء
+    if (activeTab === 'reports') {
+        return;
+    }
+    
     let ordersToShow = currentOrders;
     
     // تطبيق الفلترة حسب الحالة
@@ -882,3 +934,217 @@ window.addEventListener('offline', function() {
 // تصدير الدوال للاستخدام العام
 window.updateOrderStatus = updateOrderStatus;
 window.loadOrders = loadOrders;
+
+// ============================================
+// وظائف التقارير والإحصائيات
+// ============================================
+
+// تحديث التقارير بناءً على البيانات المتاحة
+function updateReports(orders) {
+    if (!orders || orders.length === 0) {
+        // إذا لم تكن هناك بيانات، عرض أصفار
+        resetReports();
+        return;
+    }
+    
+    // تحديث الشهر الحالي
+    const currentMonth = new Date().toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
+    const monthElement = document.getElementById('currentMonth');
+    if (monthElement) {
+        monthElement.textContent = currentMonth;
+    }
+    
+    // حساب التقارير
+    const reports = calculateReports(orders);
+    
+    // تحديث واجهة المستخدم
+    updateReportUI(reports);
+}
+
+// حساب جميع التقارير
+function calculateReports(orders) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const weekStart = new Date(today);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // فلترة الطلبات حسب الفترة
+    const todayOrders = orders.filter(o => isOrderInDate(o, today));
+    const yesterdayOrders = orders.filter(o => isOrderInDate(o, yesterday));
+    const weekOrders = orders.filter(o => isOrderAfterDate(o, weekStart));
+    const monthOrders = orders.filter(o => isOrderAfterDate(o, monthStart));
+    
+    // حساب المبيعات
+    const todaySales = calculateTotalSales(todayOrders);
+    const yesterdaySales = calculateTotalSales(yesterdayOrders);
+    const weekSales = calculateTotalSales(weekOrders);
+    const monthSales = calculateTotalSales(monthOrders);
+    const totalSales = calculateTotalSales(orders);
+    
+    // حساب عدد الطلبات
+    const todayOrdersCount = todayOrders.length;
+    const yesterdayOrdersCount = yesterdayOrders.length;
+    const weekOrdersCount = weekOrders.length;
+    const monthOrdersCount = monthOrders.length;
+    const totalOrdersCount = orders.length;
+    
+    // حساب متوسط قيمة الطلب
+    const avgOrderValue = totalOrdersCount > 0 ? totalSales / totalOrdersCount : 0;
+    
+    // حساب معدل النجاح
+    const deliveredOrders = orders.filter(o => o.status?.toLowerCase() === 'delivered');
+    const completedOrders = orders.filter(o => 
+        ['delivered', 'canceled'].includes(o.status?.toLowerCase())
+    );
+    const successRate = completedOrders.length > 0 
+        ? (deliveredOrders.length / completedOrders.length) * 100 
+        : 0;
+    
+    // حساب متوسط وقت التحضير (بالدقائق)
+    const avgPrepTime = calculateAveragePrepTime(deliveredOrders);
+    
+    return {
+        // المبيعات
+        todaySales,
+        yesterdaySales,
+        weekSales,
+        monthSales,
+        totalSales,
+        // عدد الطلبات
+        todayOrdersCount,
+        yesterdayOrdersCount,
+        weekOrdersCount,
+        monthOrdersCount,
+        totalOrdersCount,
+        // إحصائيات أخرى
+        avgOrderValue,
+        successRate,
+        avgPrepTime
+    };
+}
+
+// تحديث واجهة المستخدم بالتقارير
+function updateReportUI(reports) {
+    // التقارير الرئيسية
+    safeUpdateElement('totalSales', formatPrice(reports.totalSales) + ' جنيه');
+    safeUpdateElement('todaySales', formatPrice(reports.todaySales) + ' جنيه');
+    safeUpdateElement('totalOrdersCount', reports.totalOrdersCount + ' طلب');
+    safeUpdateElement('todayOrdersCount', reports.todayOrdersCount + ' طلب');
+    safeUpdateElement('avgOrderValue', formatPrice(reports.avgOrderValue) + ' جنيه');
+    safeUpdateElement('successRate', reports.successRate.toFixed(1) + '%');
+    safeUpdateElement('avgPrepTime', reports.avgPrepTime > 0 ? reports.avgPrepTime.toFixed(0) + ' دقيقة' : '-- دقيقة');
+    safeUpdateElement('monthlyRevenue', formatPrice(reports.monthSales) + ' جنيه');
+    
+    // تحديث مبيعات اليوم في شريط التنقل
+    safeUpdateElement('navTodaySales', formatPrice(reports.todaySales) + ' ج');
+    
+    // التقارير التفصيلية
+    safeUpdateElement('detailTodaySales', formatPrice(reports.todaySales) + ' جنيه');
+    safeUpdateElement('detailYesterdaySales', formatPrice(reports.yesterdaySales) + ' جنيه');
+    safeUpdateElement('detailWeekSales', formatPrice(reports.weekSales) + ' جنيه');
+    safeUpdateElement('detailMonthSales', formatPrice(reports.monthSales) + ' جنيه');
+    
+    safeUpdateElement('detailTodayOrders', reports.todayOrdersCount);
+    safeUpdateElement('detailYesterdayOrders', reports.yesterdayOrdersCount);
+    safeUpdateElement('detailWeekOrders', reports.weekOrdersCount);
+    safeUpdateElement('detailMonthOrders', reports.monthOrdersCount);
+}
+
+// إعادة تعيين التقارير للأصفار
+function resetReports() {
+    const elements = [
+        'totalSales', 'todaySales', 'totalOrdersCount', 'todayOrdersCount',
+        'avgOrderValue', 'successRate', 'avgPrepTime', 'monthlyRevenue',
+        'detailTodaySales', 'detailYesterdaySales', 'detailWeekSales', 'detailMonthSales',
+        'detailTodayOrders', 'detailYesterdayOrders', 'detailWeekOrders', 'detailMonthOrders'
+    ];
+    
+    elements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (id.includes('Sales') || id.includes('Value') || id.includes('Revenue')) {
+                element.textContent = '0 جنيه';
+            } else if (id.includes('Orders') || id.includes('Count')) {
+                element.textContent = '0';
+            } else if (id.includes('Rate')) {
+                element.textContent = '0%';
+            } else if (id.includes('Time')) {
+                element.textContent = '-- دقيقة';
+            }
+        }
+    });
+}
+
+// حساب إجمالي المبيعات
+function calculateTotalSales(orders) {
+    return orders.reduce((total, order) => {
+        const price = parseFloat(order.total_price) || 0;
+        return total + price;
+    }, 0);
+}
+
+// التحقق من أن الطلب في تاريخ محدد
+function isOrderInDate(order, targetDate) {
+    if (!order.order_time_cairo) return false;
+    
+    try {
+        const orderDate = new Date(order.order_time_cairo);
+        return orderDate.getFullYear() === targetDate.getFullYear() &&
+               orderDate.getMonth() === targetDate.getMonth() &&
+               orderDate.getDate() === targetDate.getDate();
+    } catch (error) {
+        return false;
+    }
+}
+
+// التحقق من أن الطلب بعد تاريخ محدد
+function isOrderAfterDate(order, targetDate) {
+    if (!order.order_time_cairo) return false;
+    
+    try {
+        const orderDate = new Date(order.order_time_cairo);
+        return orderDate >= targetDate;
+    } catch (error) {
+        return false;
+    }
+}
+
+// حساب متوسط وقت التحضير
+function calculateAveragePrepTime(deliveredOrders) {
+    if (deliveredOrders.length === 0) return 0;
+    
+    let totalMinutes = 0;
+    let validOrders = 0;
+    
+    deliveredOrders.forEach(order => {
+        if (order.order_time_cairo && order.delivery_time) {
+            try {
+                const orderTime = new Date(order.order_time_cairo);
+                const deliveryTime = new Date(order.delivery_time);
+                const diffMinutes = (deliveryTime - orderTime) / (1000 * 60);
+                
+                if (diffMinutes > 0 && diffMinutes < 1440) { // أقل من 24 ساعة
+                    totalMinutes += diffMinutes;
+                    validOrders++;
+                }
+            } catch (error) {
+                // تجاهل الطلبات ذات التواريخ غير الصحيحة
+            }
+        }
+    });
+    
+    return validOrders > 0 ? totalMinutes / validOrders : 0;
+}
+
+// تحديث عنصر بأمان
+function safeUpdateElement(id, value) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.textContent = value;
+    }
+}

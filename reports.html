@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التقارير والإحصائيات - كافيه فيروز</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📊 التقارير والإحصائيات - كافيه فيروز</h1>
+            <div class="status-bar">
+                <div class="last-update">آخر تحديث: <span id="lastUpdate">--</span></div>
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">متصل</span>
+                    <a href="index.html" class="config-link" title="العودة للطلبات">🏠</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Quick Stats Navigation -->
+        <nav class="quick-stats-nav">
+            <div class="quick-stat-item">
+                <div class="quick-stat-icon">📋</div>
+                <div class="quick-stat-content">
+                    <span class="quick-stat-label">الطلبات النشطة</span>
+                    <span class="quick-stat-value" id="navTotalOrders">0</span>
+                </div>
+            </div>
+            
+            <div class="quick-stat-item">
+                <div class="quick-stat-icon">✅</div>
+                <div class="quick-stat-content">
+                    <span class="quick-stat-label">مؤكدة</span>
+                    <span class="quick-stat-value confirmed" id="navConfirmedOrders">0</span>
+                </div>
+            </div>
+            
+            <div class="quick-stat-item">
+                <div class="quick-stat-icon">🍳</div>
+                <div class="quick-stat-content">
+                    <span class="quick-stat-label">قيد التحضير</span>
+                    <span class="quick-stat-value preparing" id="navPreparingOrders">0</span>
+                </div>
+            </div>
+            
+            <div class="quick-stat-item">
+                <div class="quick-stat-icon">🚚</div>
+                <div class="quick-stat-content">
+                    <span class="quick-stat-label">تم التسليم</span>
+                    <span class="quick-stat-value delivered" id="navDeliveredOrders">0</span>
+                </div>
+            </div>
+            
+            <div class="quick-stat-item highlight">
+                <div class="quick-stat-icon">💰</div>
+                <div class="quick-stat-content">
+                    <span class="quick-stat-label">مبيعات اليوم</span>
+                    <span class="quick-stat-value sales" id="navTodaySales">0 ج</span>
+                </div>
+            </div>
+        </nav>
+
+        <div class="controls-section">
+            <button id="refreshBtn" class="btn btn-primary">
+                <span class="btn-icon">🔄</span>
+                تحديث البيانات
+            </button>
+            <a href="index.html" class="btn btn-secondary">
+                <span class="btn-icon">🏠</span>
+                العودة للطلبات
+            </a>
+        </div>
+
+        <div class="loading-container" id="loadingContainer">
+            <div class="loading-spinner"></div>
+            <p>جاري تحميل التقارير...</p>
+        </div>
+
+        <!-- Reports Section -->
+        <div class="reports-section" id="reportsSection" style="display: none;">
+            <div class="reports-header">
+                <h2>📊 التقارير والإحصائيات</h2>
+                <div class="reports-period-selector">
+                    <button class="period-btn active" data-period="today">اليوم</button>
+                    <button class="period-btn" data-period="week">هذا الأسبوع</button>
+                    <button class="period-btn" data-period="month">هذا الشهر</button>
+                </div>
+            </div>
+            
+            <div class="reports-grid">
+                <!-- Sales Reports -->
+                <div class="report-card sales-card">
+                    <div class="report-icon">💰</div>
+                    <div class="report-content">
+                        <h3>إجمالي المبيعات</h3>
+                        <div class="report-value" id="totalSales">0 جنيه</div>
+                        <div class="report-meta">
+                            <span class="report-label">اليوم:</span>
+                            <span class="report-subvalue" id="todaySales">0 جنيه</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-card orders-card">
+                    <div class="report-icon">📦</div>
+                    <div class="report-content">
+                        <h3>عدد الطلبات</h3>
+                        <div class="report-value" id="totalOrdersCount">0 طلب</div>
+                        <div class="report-meta">
+                            <span class="report-label">اليوم:</span>
+                            <span class="report-subvalue" id="todayOrdersCount">0 طلب</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-card avg-card">
+                    <div class="report-icon">📈</div>
+                    <div class="report-content">
+                        <h3>متوسط قيمة الطلب</h3>
+                        <div class="report-value" id="avgOrderValue">0 جنيه</div>
+                        <div class="report-meta">
+                            <span class="report-label">آخر 30 يوم</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-card success-card">
+                    <div class="report-icon">✅</div>
+                    <div class="report-content">
+                        <h3>معدل النجاح</h3>
+                        <div class="report-value" id="successRate">0%</div>
+                        <div class="report-meta">
+                            <span class="report-label">طلبات مكتملة / إجمالي الطلبات</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-card pending-card">
+                    <div class="report-icon">⏰</div>
+                    <div class="report-content">
+                        <h3>متوسط وقت التحضير</h3>
+                        <div class="report-value" id="avgPrepTime">-- دقيقة</div>
+                        <div class="report-meta">
+                            <span class="report-label">من التأكيد للتسليم</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-card revenue-card">
+                    <div class="report-icon">💵</div>
+                    <div class="report-content">
+                        <h3>الإيرادات الشهرية</h3>
+                        <div class="report-value" id="monthlyRevenue">0 جنيه</div>
+                        <div class="report-meta">
+                            <span class="report-label" id="currentMonth">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Reports -->
+            <div class="detailed-reports">
+                <div class="detailed-report-card">
+                    <h3>📊 تفاصيل المبيعات</h3>
+                    <div class="report-details-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">مبيعات اليوم</span>
+                            <span class="detail-value" id="detailTodaySales">0 جنيه</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">مبيعات أمس</span>
+                            <span class="detail-value" id="detailYesterdaySales">0 جنيه</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">مبيعات هذا الأسبوع</span>
+                            <span class="detail-value" id="detailWeekSales">0 جنيه</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">مبيعات هذا الشهر</span>
+                            <span class="detail-value" id="detailMonthSales">0 جنيه</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detailed-report-card">
+                    <h3>📈 إحصائيات الطلبات</h3>
+                    <div class="report-details-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">طلبات اليوم</span>
+                            <span class="detail-value" id="detailTodayOrders">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">طلبات أمس</span>
+                            <span class="detail-value" id="detailYesterdayOrders">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">طلبات هذا الأسبوع</span>
+                            <span class="detail-value" id="detailWeekOrders">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">طلبات هذا الشهر</span>
+                            <span class="detail-value" id="detailMonthOrders">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="reports.js"></script>
+</body>
+</html>
