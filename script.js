@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // تهيئة التطبيق
-function initializeApp() {
+async function initializeApp() {
     // تنظيف أي cache قديم للحالات
     clearOldCache();
     
@@ -89,11 +89,9 @@ function initializeApp() {
     // إعداد مستمعي الأحداث
     setupEventListeners();
     
-    // إعداد مستمعي أحداث التقارير
-    setupReportEventListeners();
-    
-    // تحميل الطلبات الأولي
-    loadOrders();
+    // تحميل الطلبات الأولي بشكل صريح
+    console.log('بدء تحميل البيانات الأولي...');
+    await loadOrders(false);
     
     // بدء التحديث التلقائي
     startAutoRefresh();
@@ -317,6 +315,8 @@ function checkForNewOrders(newOrders) {
 
 // عرض الطلبات
 function displayOrders(orders, serverStats = null) {
+    console.log('عرض الطلبات - العدد:', orders.length);
+    
     // حفظ الطلبات الحالية
     currentOrders = orders;
     
@@ -324,13 +324,16 @@ function displayOrders(orders, serverStats = null) {
     hideAllStates();
     
     if (orders.length === 0) {
+        console.log('لا توجد طلبات للعرض');
         elements.noOrdersContainer.style.display = 'flex';
         elements.tabsContainer.style.display = 'none';
         return;
     }
     
+    console.log('إظهار التابات والطلبات');
     // إظهار التابات وتحديث العدادات
     elements.tabsContainer.style.display = 'block';
+    elements.ordersContainer.style.display = 'grid';
     updateTabCounts(orders, serverStats);
     
     // تطبيق الفلترة حسب التاب النشط
