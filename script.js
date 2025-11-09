@@ -7,10 +7,10 @@ const getStoredConfig = () => {
 
 const CONFIG = getStoredConfig() || {
     // رابط الـ webhook لجلب الطلبات (GET)
-    GET_ORDERS_WEBHOOK: 'https://biometrical-bettina-benignly.ngrok-free.dev/webhook/webhook/get-orders',
+    GET_ORDERS_WEBHOOK: 'https://mogeeb.shop/webhook/webhook/get-orders',
     
     // رابط الـ webhook لتحديث حالة الطلب (POST) - سيحتاج إلى إنشاؤه في n8n
-    UPDATE_ORDER_WEBHOOK: 'https://biometrical-bettina-benignly.ngrok-free.dev/webhook/webhook/update-order',
+    UPDATE_ORDER_WEBHOOK: 'https://mogeeb.shop/webhook/webhook/update-order',
     
     // فترة التحديث التلقائي بالميلي ثانية (30 ثانية)
     AUTO_REFRESH_INTERVAL: 30000,
