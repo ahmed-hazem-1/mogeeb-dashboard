@@ -12,8 +12,8 @@ const CONFIG = getStoredConfig() || {
     // رابط الـ webhook لتحديث حالة الطلب (POST) - سيحتاج إلى إنشاؤه في n8n
     UPDATE_ORDER_WEBHOOK: 'https://mogeeb.shop/webhook/webhook/update-order',
     
-    // فترة التحديث التلقائي بالميلي ثانية (30 ثانية)
-    AUTO_REFRESH_INTERVAL: 30000,
+    // فترة التحديث التلقائي بالميلي ثانية (20 ثانية)
+    AUTO_REFRESH_INTERVAL: 20000,
     
     // الحد الأقصى لعدد المحاولات عند فشل الطلب
     MAX_RETRY_ATTEMPTS: 3,
