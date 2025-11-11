@@ -230,6 +230,7 @@ async function fetchWithRetry(url, options, attempts = CONFIG.MAX_RETRY_ATTEMPTS
 // معالجة بيانات الطلبات
 function processOrdersData(data) {
     console.log('البيانات المستلمة:', data);
+    console.log('نوع البيانات:', typeof data, 'هل هي مصفوفة:', Array.isArray(data));
     
     // التحقق من التنسيق الجديد مع الإحصائيات
     let orders = [];
@@ -252,6 +253,12 @@ function processOrdersData(data) {
     } else {
         console.warn('تنسيق البيانات غير صحيح:', data);
         orders = [];
+    }
+    
+    // عرض عينة من أول طلب للتحقق من البنية
+    if (orders.length > 0) {
+        console.log('عينة من أول طلب:', orders[0]);
+        console.log('حقول الطلب المتاحة:', Object.keys(orders[0]));
     }
     
     // فلترة الطلبات النشطة فقط (ليست delivered أو canceled)
@@ -384,6 +391,8 @@ function createOrderCard(order, index) {
             </div>
         </div>
         
+        ${createNotesSection(order)}
+        
         <div class="total-price">
             💰 المجموع: ${formatPrice(order.total_price)} جنيه
         </div>
@@ -418,6 +427,39 @@ function createItemsList(orderItems) {
             </div>
         `;
     }).join('');
+}
+
+// إنشاء قسم الملاحظات
+function createNotesSection(order) {
+    // محاولة الحصول على الملاحظات من حقول مختلفة محتملة
+    const notes = order.notes || 
+                  order.order_notes || 
+                  order.customer_notes || 
+                  order.note || 
+                  order.special_instructions || 
+                  order.comments || 
+                  order.remarks || 
+                  '';
+    
+    // تسجيل البيانات للتحقق (يمكن إزالتها لاحقاً)
+    if (order.order_id === order.order_id) { // فقط للطلب الأول
+        console.log('بيانات الطلب الكاملة:', order);
+        console.log('الملاحظات المستخرجة:', notes);
+    }
+    
+    // إذا لم تكن هناك ملاحظات، لا تعرض القسم
+    if (!notes || notes.trim() === '') {
+        return '';
+    }
+    
+    return `
+        <div class="order-notes">
+            <h4>📝 ملاحظات</h4>
+            <div class="notes-content">
+                ${notes}
+            </div>
+        </div>
+    `;
 }
 
 function createActionButtons(order) {
