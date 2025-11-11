@@ -19,7 +19,7 @@ const CONFIG = getStoredConfig() || {
     MAX_RETRY_ATTEMPTS: 3,
     
     // وقت الانتظار بين المحاولات (بالميلي ثانية)
-    RETRY_DELAY: 2000
+    RETRY_DELAY: 5000
 };
 
 // متغيرات عامة
