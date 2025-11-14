@@ -259,6 +259,13 @@ function processOrdersData(data) {
     if (orders.length > 0) {
         console.log('عينة من أول طلب:', orders[0]);
         console.log('حقول الطلب المتاحة:', Object.keys(orders[0]));
+        console.log('======= فحص حقل المصدر (source) =======');
+        console.log('هل يوجد حقل source؟', 'source' in orders[0]);
+        console.log('قيمة source:', orders[0].source);
+        console.log('قيمة order_source:', orders[0].order_source);
+        console.log('قيمة platform:', orders[0].platform);
+        console.log('قيمة channel:', orders[0].channel);
+        console.log('=====================================');
     }
     
     // فلترة الطلبات النشطة فقط (ليست delivered أو canceled)
@@ -359,6 +366,13 @@ function createOrderCard(order, index) {
         card.classList.add('new-order');
     }
     
+    // تسجيل بيانات المصدر للتحقق
+    console.log(`Order ${order.order_id}:`, {
+        customer_source: order.customer_source,
+        source: order.source,
+        allKeys: Object.keys(order)
+    });
+    
     card.innerHTML = `
         <div class="order-header">
             <div class="order-id">طلب #${order.order_id}</div>
@@ -369,6 +383,10 @@ function createOrderCard(order, index) {
         
         <div class="order-time">
             ⏰ ${formatOrderTime(order.order_time_cairo)}
+        </div>
+        
+        <div class="order-source" style="padding: 10px; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px; text-align: center; font-weight: 500; color: #495057;">
+            📱 المصدر: <span style="color: #007bff;">${order.customer_source || 'غير محدد'}</span>
         </div>
         
         <div class="customer-info">
@@ -535,10 +553,21 @@ async function confirmOrderUpdate() {
     
     console.log(`جاري تحديث الطلب ${orderId} إلى حالة ${newStatus}`);
     
+    // العثور على الطلب للحصول على بيانات العميل
+    // مقارنة مع تحويل النوع للتأكد من التطابق
+    const order = currentOrders.find(o => o.order_id == orderId || String(o.order_id) === String(orderId));
+    console.log('الطلب المطلوب:', order);
+    console.log('جميع معرفات الطلبات المتاحة:', currentOrders.map(o => o.order_id));
+    console.log('نوع orderId المطلوب:', typeof orderId, orderId);
+    
     // تحضير بيانات الطلب
     const updateData = {
         order_id: orderId,
         new_status: newStatus,
+        customer_id: order?.customer_id || order?.customer_phone || null,
+        customer_phone: order?.customer_phone || null,
+        customer_name: order?.customer_name || null,
+        customer_source: order?.customer_source || null,
         updated_by: 'dashboard',
         timestamp: new Date().toISOString()
     };
