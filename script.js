@@ -552,19 +552,33 @@ async function confirmOrderUpdate() {
     closeConfirmModal();
     
     console.log(`جاري تحديث الطلب ${orderId} إلى حالة ${newStatus}`);
+    console.log('عدد الطلبات في currentOrders:', currentOrders.length);
     
     // العثور على الطلب للحصول على بيانات العميل
     // مقارنة مع تحويل النوع للتأكد من التطابق
     const order = currentOrders.find(o => o.order_id == orderId || String(o.order_id) === String(orderId));
-    console.log('الطلب المطلوب:', order);
-    console.log('جميع معرفات الطلبات المتاحة:', currentOrders.map(o => o.order_id));
-    console.log('نوع orderId المطلوب:', typeof orderId, orderId);
     
-    // تحضير بيانات الطلب
+    console.log('====== تفاصيل البحث عن الطلب ======');
+    console.log('orderId المطلوب:', orderId, '(نوعه:', typeof orderId + ')');
+    console.log('جميع معرفات الطلبات المتاحة:', currentOrders.map(o => ({id: o.order_id, type: typeof o.order_id})));
+    console.log('الطلب الذي تم العثور عليه:', order);
+    console.log('=====================================');
+    
+    if (!order) {
+        console.error('❌ لم يتم العثور على الطلب في currentOrders!');
+        console.log('محاولة البحث في جميع الطلبات المفلترة...');
+        // محاولة البحث في المصفوفة الأصلية قبل الفلترة
+        console.log('filteredOrders:', filteredOrders);
+    }
+    
+    // تحضير بيانات الطلب - إرسال جميع معرفات العميل المتاحة
     const updateData = {
         order_id: orderId,
         new_status: newStatus,
-        customer_id: order?.customer_id || order?.customer_phone || null,
+        // معرفات العميل من مصادر مختلفة
+        customer_id: order?.customer_id || null,
+        telegram_id: order?.telegram_id || null,
+        whatsapp_id: order?.whatsapp_id || null,
         customer_phone: order?.customer_phone || null,
         customer_name: order?.customer_name || null,
         customer_source: order?.customer_source || null,

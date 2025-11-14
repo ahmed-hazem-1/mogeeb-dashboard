@@ -99,7 +99,7 @@ git push -u origin main
 - **النوع**: GET
 - **الرابط**: المتوفر حالياً
 ```
-https://antoinette-nonmimetic-boringly.ngrok-free.dev/webhook/3661fab8-5e08-446f-869f-8c229d6111ea
+ 
 ```
 
 #### Workflow للتحديث (POST) - يحتاج إنشاء
